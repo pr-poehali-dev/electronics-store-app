@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Get products list",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"products": [], "total": 0},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get product by id",
+      "method": "GET",
+      "path": "/?id=1",
+      "expectedStatus": 200,
+      "expectedBody": {"id": 1},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

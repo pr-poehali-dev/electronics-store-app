@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get analytics overview",
+      "method": "GET",
+      "path": "/?section=analytics&type=overview",
+      "expectedStatus": 200,
+      "expectedBody": {"orders_total": 0},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get customers list",
+      "method": "GET",
+      "path": "/?section=customers",
+      "expectedStatus": 200,
+      "expectedBody": {"customers": []},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get categories stats",
+      "method": "GET",
+      "path": "/?section=analytics&type=categories",
+      "expectedStatus": 200,
+      "expectedBody": {"categories": []},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
