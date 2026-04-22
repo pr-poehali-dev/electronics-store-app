@@ -15,6 +15,14 @@
       "expectedStatus": 200,
       "expectedBody": {"id": 1},
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get reviews for product 1",
+      "method": "GET",
+      "path": "/?section=reviews&product_id=1",
+      "expectedStatus": 200,
+      "expectedBody": {"reviews": [], "stats": {}},
+      "bodyMatcher": "partial"
     }
   ]
 }

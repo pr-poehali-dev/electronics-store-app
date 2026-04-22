@@ -130,13 +130,51 @@ function ProductCard({ product, onAddToCart, onNavigateProduct }: { product: Pro
 }
 
 // ============ PRODUCT PAGE ============
-function ProductPage({ productId, onNavigate, onAddToCart }: { productId: number; onNavigate: (p: Page) => void; onAddToCart: (p: Product) => void }) {
+function ProductPage({ productId, onNavigate, onAddToCart, token, user }: { productId: number; onNavigate: (p: Page) => void; onAddToCart: (p: Product) => void; token: string; user: any }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"desc" | "specs" | "delivery">("desc");
+  const [activeTab, setActiveTab] = useState<"desc" | "specs" | "delivery" | "reviews">("desc");
+
+  // Reviews state
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewStats, setReviewStats] = useState<any>(null);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, text: "", author_name: user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : "" });
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  const loadReviews = useCallback(() => {
+    fetch(`${API_PRODUCTS}?section=reviews&product_id=${productId}`)
+      .then(r => r.json())
+      .then(d => { setReviews(d.reviews || []); setReviewStats(d.stats || null); })
+      .catch(() => {});
+  }, [productId]);
+
+  const submitReview = async () => {
+    if (!reviewForm.author_name.trim()) { setReviewError("Введите имя"); return; }
+    setReviewLoading(true); setReviewError("");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const r = await fetch(`${API_PRODUCTS}?section=reviews`, {
+      method: "POST", headers,
+      body: JSON.stringify({ product_id: productId, rating: reviewForm.rating, text: reviewForm.text, author_name: reviewForm.author_name })
+    }).catch(() => null);
+    setReviewLoading(false);
+    if (r?.status === 409) { setReviewError("Вы уже оставляли отзыв на этот товар"); return; }
+    if (r?.ok) {
+      setReviewSuccess(true);
+      setReviewForm(f => ({ ...f, text: "" }));
+      loadReviews();
+      setTimeout(() => setReviewSuccess(false), 3000);
+    } else {
+      setReviewError("Ошибка при сохранении отзыва");
+    }
+  };
+
+  useEffect(() => { loadReviews(); }, [loadReviews]);
 
   useEffect(() => {
     setLoading(true); setAdded(false); setQty(1);
@@ -320,6 +358,7 @@ function ProductPage({ productId, onNavigate, onAddToCart }: { productId: number
             { id: "desc", label: "Описание" },
             { id: "specs", label: "Характеристики" },
             { id: "delivery", label: "Доставка и оплата" },
+            { id: "reviews", label: `Отзывы${reviewStats?.count ? ` (${reviewStats.count})` : ""}` },
           ] as const).map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`px-6 py-4 text-sm font-medium transition-all ${activeTab === tab.id ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-muted-foreground hover:text-white'}`}>
@@ -368,6 +407,120 @@ function ProductPage({ productId, onNavigate, onAddToCart }: { productId: number
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {activeTab === "reviews" && (
+            <div className="space-y-6">
+              {/* Stats bar */}
+              {reviewStats && reviewStats.count > 0 && (
+                <div className="flex gap-6 items-center flex-wrap">
+                  <div className="text-center">
+                    <div className="font-display font-black text-4xl text-cyan-400">{reviewStats.avg}</div>
+                    <div className="flex justify-center mt-1">
+                      {[1,2,3,4,5].map(i => <span key={i} className={i <= Math.round(reviewStats.avg) ? "text-yellow-400" : "text-gray-600"} style={{fontSize:16}}>★</span>)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{reviewStats.count} отзывов</div>
+                  </div>
+                  <div className="flex-1 space-y-1.5 min-w-[160px]">
+                    {[5,4,3,2,1].map(r => {
+                      const cnt = reviewStats.by_rating[r] || 0;
+                      const pct = reviewStats.count > 0 ? (cnt / reviewStats.count) * 100 : 0;
+                      return (
+                        <div key={r} className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-3">{r}</span>
+                          <span className="text-yellow-400 text-xs">★</span>
+                          <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                            <div className="h-full rounded-full bg-yellow-400 transition-all" style={{width: `${pct}%`}} />
+                          </div>
+                          <span className="text-xs text-muted-foreground w-4">{cnt}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Reviews list */}
+              {reviews.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Icon name="MessageSquare" size={36} className="mx-auto mb-3 opacity-30" />
+                  <p>Отзывов пока нет. Будьте первым!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map(r => (
+                    <div key={r.id} className="glass rounded-2xl p-4 neon-border">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0"
+                            style={{background: 'linear-gradient(135deg, rgba(0,229,255,0.2), rgba(155,89,245,0.2))'}}>
+                            {r.author_name[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold">{r.author_name}</span>
+                              {r.is_verified && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full text-emerald-400 bg-emerald-400/10 flex items-center gap-0.5">
+                                  <Icon name="BadgeCheck" size={10} /> Покупатель
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {[1,2,3,4,5].map(i => <span key={i} className={i <= r.rating ? "text-yellow-400" : "text-gray-600"} style={{fontSize:11}}>★</span>)}
+                              <span className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString('ru-RU')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {r.text && <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Write review form */}
+              <div className="glass rounded-2xl p-5 neon-border space-y-4" style={{borderColor: 'rgba(0,229,255,0.15)'}}>
+                <h4 className="font-display font-bold text-sm">Оставить отзыв</h4>
+                {reviewSuccess && (
+                  <div className="glass rounded-xl p-3 border border-emerald-500/30 text-emerald-400 text-sm flex items-center gap-2">
+                    <Icon name="Check" size={14} />Отзыв успешно опубликован!
+                  </div>
+                )}
+                {/* Star selector */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-2 block">Ваша оценка *</label>
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(s => (
+                      <button key={s} onClick={() => setReviewForm(f => ({...f, rating: s}))}
+                        className="text-2xl transition-transform hover:scale-110"
+                        style={{color: s <= reviewForm.rating ? '#facc15' : '#374151'}}>★</button>
+                    ))}
+                    <span className="text-sm text-muted-foreground ml-2 self-center">
+                      {["", "Плохо", "Не очень", "Нормально", "Хорошо", "Отлично"][reviewForm.rating]}
+                    </span>
+                  </div>
+                </div>
+                {!user && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Ваше имя *</label>
+                    <input value={reviewForm.author_name} onChange={e => setReviewForm(f => ({...f, author_name: e.target.value}))}
+                      placeholder="Как вас зовут?" className="w-full glass rounded-xl px-4 py-2.5 text-sm outline-none border border-transparent focus:border-cyan-500/40 transition-all" />
+                  </div>
+                )}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Комментарий</label>
+                  <textarea value={reviewForm.text} onChange={e => setReviewForm(f => ({...f, text: e.target.value}))}
+                    rows={3} placeholder="Расскажите о товаре — что понравилось или нет?"
+                    className="w-full glass rounded-xl px-4 py-2.5 text-sm outline-none border border-transparent focus:border-cyan-500/40 transition-all resize-none" />
+                </div>
+                {reviewError && <div className="glass rounded-xl p-3 border border-red-500/30 text-red-400 text-sm">{reviewError}</div>}
+                <button onClick={submitReview} disabled={reviewLoading}
+                  className="gradient-btn px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 disabled:opacity-60">
+                  <Icon name="Send" size={14} />
+                  {reviewLoading ? "Публикуем..." : "Опубликовать отзыв"}
+                </button>
+                {!user && <p className="text-xs text-muted-foreground"><button onClick={() => onNavigate("auth")} className="text-cyan-400 hover:underline">Войдите</button>, чтобы отзыв получил метку «Покупатель»</p>}
+              </div>
             </div>
           )}
         </div>
@@ -1445,7 +1598,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {page === "home" && !lastOrderId && <HomePage onNavigate={navigate} onAddToCart={addToCart} onNavigateProduct={navigateProduct} />}
         {page === "home" && lastOrderId && <OrderSuccessPage orderId={lastOrderId} onNavigate={(p) => { setLastOrderId(null); navigate(p); }} />}
-        {page === "product" && currentProductId && <ProductPage productId={currentProductId} onNavigate={navigate} onAddToCart={addToCart} />}
+        {page === "product" && currentProductId && <ProductPage productId={currentProductId} onNavigate={navigate} onAddToCart={addToCart} token={token} user={user} />}
         {page === "catalog" && <CatalogPage onAddToCart={addToCart} onNavigateProduct={navigateProduct} />}
         {page === "cart" && <CartPage cart={cart} onUpdate={setCart} onNavigate={navigate} />}
         {page === "checkout" && <CheckoutPage cart={cart} token={token} user={user} onSuccess={(id) => { setLastOrderId(id); setCart([]); navigate("home"); }} onNavigate={navigate} />}
