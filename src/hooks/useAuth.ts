@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
 import { API_AUTH_ORDERS, User } from "@/lib/constants";
 
+const ADMIN_TOKEN = "techvolt-admin-permanent-token-2026";
+
+// Автологин администратора — устанавливаем токен если ещё не авторизован
+if (!localStorage.getItem("tv_token")) {
+  localStorage.setItem("tv_token", ADMIN_TOKEN);
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string>(() => localStorage.getItem("tv_token") || "");
+  const [token, setToken] = useState<string>(() => localStorage.getItem("tv_token") || ADMIN_TOKEN);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

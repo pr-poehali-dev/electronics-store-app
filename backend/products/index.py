@@ -159,6 +159,24 @@ def handler(event: dict, context) -> dict:
         # ============ PRODUCTS ============
         else:
             if method == "GET":
+                # Метаданные для фильтров
+                if params.get("meta") == "true":
+                    cat_filter = params.get("category", "")
+                    meta_cond = "is_active = TRUE"
+                    meta_args = []
+                    if cat_filter:
+                        meta_cond += " AND category = %s"
+                        meta_args.append(cat_filter)
+                    cur.execute(f"SELECT DISTINCT brand FROM {SCHEMA}.products WHERE {meta_cond} ORDER BY brand", meta_args)
+                    brands = [r[0] for r in cur.fetchall()]
+                    cur.execute(f"SELECT MIN(price), MAX(price) FROM {SCHEMA}.products WHERE {meta_cond}", meta_args)
+                    row = cur.fetchone()
+                    return {"statusCode": 200, "headers": CORS, "body": json.dumps({
+                        "brands": brands,
+                        "price_min": float(row[0]) if row[0] else 0,
+                        "price_max": float(row[1]) if row[1] else 999999,
+                    })}
+
                 product_id = params.get("id")
                 if product_id:
                     cur.execute(f"SELECT * FROM {SCHEMA}.products WHERE id = %s", (int(product_id),))
@@ -181,6 +199,13 @@ def handler(event: dict, context) -> dict:
                 page = int(params.get("page", 1))
                 per_page = int(params.get("per_page", 20))
                 offset = (page - 1) * per_page
+                min_price = params.get("min_price", "")
+                max_price = params.get("max_price", "")
+                min_rating = params.get("min_rating", "")
+                in_stock = params.get("in_stock", "")
+                has_discount = params.get("has_discount", "")
+                # brands — несколько через запятую
+                brands_raw = params.get("brands", "")
 
                 conditions = ["is_active = TRUE"]
                 args = []
@@ -190,9 +215,28 @@ def handler(event: dict, context) -> dict:
                 if brand:
                     conditions.append("brand = %s")
                     args.append(brand)
+                if brands_raw:
+                    brand_list = [b.strip() for b in brands_raw.split(",") if b.strip()]
+                    if brand_list:
+                        placeholders = ",".join(["%s"] * len(brand_list))
+                        conditions.append(f"brand IN ({placeholders})")
+                        args.extend(brand_list)
                 if search:
                     conditions.append("name ILIKE %s")
                     args.append(f"%{search}%")
+                if min_price:
+                    conditions.append("price >= %s")
+                    args.append(float(min_price))
+                if max_price:
+                    conditions.append("price <= %s")
+                    args.append(float(max_price))
+                if min_rating:
+                    conditions.append("rating >= %s")
+                    args.append(float(min_rating))
+                if in_stock == "true":
+                    conditions.append("stock > 0")
+                if has_discount == "true":
+                    conditions.append("old_price IS NOT NULL AND old_price > price")
 
                 where = " AND ".join(conditions)
                 order_map = {
