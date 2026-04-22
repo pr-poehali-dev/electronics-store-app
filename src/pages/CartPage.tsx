@@ -1,6 +1,7 @@
  
 import Icon from "@/components/ui/icon";
 import { Page, CartItem, GADGETS_IMG } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function CartPage({ cart, onUpdate, onNavigate }: { cart: CartItem[]; onUpdate: (cart: CartItem[]) => void; onNavigate: (p: Page) => void }) {
   const total = cart.reduce((s, p) => s + p.price * p.quantity, 0);
@@ -18,6 +19,7 @@ export default function CartPage({ cart, onUpdate, onNavigate }: { cart: CartIte
   }
   return (
     <div className="max-w-4xl mx-auto animate-fade-up">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Корзина" }]} onNavigate={onNavigate} />
       <h2 className="font-display font-bold text-2xl mb-6">Корзина <span className="text-muted-foreground text-base font-normal">({cart.length})</span></h2>
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-3">

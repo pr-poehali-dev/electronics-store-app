@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { Page, API_ADMIN } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function AdminPage({ onNavigate }: { onNavigate: (p: Page) => void }) {
   const [stats, setStats] = useState<any>(null);
@@ -18,6 +19,7 @@ export default function AdminPage({ onNavigate }: { onNavigate: (p: Page) => voi
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Администратор" }]} onNavigate={onNavigate} />
       <h2 className="font-display font-bold text-2xl">Панель администратора</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats ? [

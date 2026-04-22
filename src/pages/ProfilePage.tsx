@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Icon from "@/components/ui/icon";
 import { Page, User } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function ProfilePage({ user, onLogout, onNavigate }: { user: User | null; onLogout: () => void; onNavigate: (p: Page) => void }) {
   if (!user) return (
@@ -13,6 +14,7 @@ export default function ProfilePage({ user, onLogout, onNavigate }: { user: User
   const initials = `${user.first_name?.[0] || ""}${user.last_name?.[0] || ""}`.toUpperCase() || user.email[0].toUpperCase();
   return (
     <div className="max-w-2xl mx-auto">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Профиль" }]} onNavigate={onNavigate} />
       <div className="glass rounded-3xl p-8 neon-border text-center mb-6">
         <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center font-display font-black text-2xl" style={{ background: 'linear-gradient(135deg, #00e5ff, #9b59f5)', color: '#080c14' }}>{initials}</div>
         <h2 className="font-display font-bold text-xl">{user.first_name} {user.last_name}</h2>

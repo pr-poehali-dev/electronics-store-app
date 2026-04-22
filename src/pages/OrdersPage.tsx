@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { Page, User, API_AUTH_ORDERS, STATUS_LABELS, STATUS_COLORS } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function OrdersPage({ token, user, onNavigate }: { token: string; user: User | null; onNavigate: (p: Page) => void }) {
   const [orders, setOrders] = useState<any[]>([]);
@@ -24,6 +25,7 @@ export default function OrdersPage({ token, user, onNavigate }: { token: string;
 
   return (
     <div className="max-w-3xl mx-auto">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Профиль", page: "profile" }, { label: "Мои заказы" }]} onNavigate={onNavigate} />
       <h2 className="font-display font-bold text-2xl mb-6">Мои заказы</h2>
       {loading ? <div className="space-y-3">{[1, 2].map(i => <div key={i} className="glass rounded-2xl h-20 animate-pulse" />)}</div>
         : orders.length === 0 ? (

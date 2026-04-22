@@ -1,9 +1,12 @@
  
 import Icon from "@/components/ui/icon";
+import { Page } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
-export default function ContactsPage() {
+export default function ContactsPage({ onNavigate }: { onNavigate: (p: Page) => void }) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Контакты" }]} onNavigate={onNavigate} />
       <h2 className="font-display font-bold text-2xl">Контакты</h2>
       <div className="grid sm:grid-cols-2 gap-4">
         {[

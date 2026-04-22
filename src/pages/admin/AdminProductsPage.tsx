@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { Page, Product, API_PRODUCTS } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function AdminProductsPage({ onNavigate }: { onNavigate: (p: Page) => void }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -40,6 +41,7 @@ export default function AdminProductsPage({ onNavigate }: { onNavigate: (p: Page
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Администратор", page: "admin" }, { label: "Товары" }]} onNavigate={onNavigate} />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <button onClick={() => onNavigate("admin")} className="text-muted-foreground hover:text-white transition-colors"><Icon name="ArrowLeft" size={20} /></button>

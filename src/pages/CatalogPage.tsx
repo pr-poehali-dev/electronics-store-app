@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import ProductCard from "@/components/ProductCard";
-import { Product, API_PRODUCTS, CATEGORIES } from "@/lib/constants";
+import { Product, API_PRODUCTS, CATEGORIES, Page } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 const SORT_OPTIONS = [
   { value: "reviews_count", label: "По популярности" },
@@ -43,9 +44,10 @@ function FilterBadge({ count, onClear }: { count: number; onClear: () => void })
   );
 }
 
-export default function CatalogPage({ onAddToCart, onNavigateProduct }: {
+export default function CatalogPage({ onAddToCart, onNavigateProduct, onNavigate }: {
   onAddToCart: (p: Product) => void;
   onNavigateProduct: (id: number) => void;
+  onNavigate: (p: Page) => void;
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -294,6 +296,8 @@ export default function CatalogPage({ onAddToCart, onNavigateProduct }: {
   );
 
   return (
+    <div>
+    <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Каталог" }]} onNavigate={onNavigate} />
     <div className="flex gap-6 relative">
       {/* ─── Боковая панель Desktop ─── */}
       <aside className="w-60 shrink-0 hidden lg:block">
@@ -457,6 +461,7 @@ export default function CatalogPage({ onAddToCart, onNavigateProduct }: {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

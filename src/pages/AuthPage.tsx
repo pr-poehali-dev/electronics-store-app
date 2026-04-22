@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { Page } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
-export default function AuthPage({ onLogin, onRegister }: { onLogin: (e: string, p: string) => Promise<{ ok: boolean; error?: string }>; onRegister: (d: any) => Promise<{ ok: boolean; error?: string }> }) {
+export default function AuthPage({ onLogin, onRegister, onNavigate }: { onLogin: (e: string, p: string) => Promise<{ ok: boolean; error?: string }>; onRegister: (d: any) => Promise<{ ok: boolean; error?: string }>; onNavigate: (p: Page) => void }) {
   const [tab, setTab] = useState<"login" | "register">("login");
   const [form, setForm] = useState({ email: "", password: "", first_name: "", last_name: "", phone: "" });
   const [error, setError] = useState("");
@@ -22,6 +24,8 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (e: string,
   };
 
   return (
+    <div>
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Вход / Регистрация" }]} onNavigate={onNavigate} />
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="glass rounded-3xl p-8 neon-border w-full max-w-md animate-scale-in">
         <div className="text-center mb-6">
@@ -52,6 +56,7 @@ export default function AuthPage({ onLogin, onRegister }: { onLogin: (e: string,
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

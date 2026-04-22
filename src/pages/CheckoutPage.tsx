@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import { Page, CartItem, User, API_AUTH_ORDERS } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function CheckoutPage({ cart, token, user, onSuccess, onNavigate }: {
   cart: CartItem[]; token: string; user: User | null; onSuccess: (id: number) => void; onNavigate: (p: Page) => void;
@@ -27,6 +28,7 @@ export default function CheckoutPage({ cart, token, user, onSuccess, onNavigate 
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-up">
+      <Breadcrumbs crumbs={[{ label: "Главная", page: "home" }, { label: "Корзина", page: "cart" }, { label: "Оформление заказа" }]} onNavigate={onNavigate} />
       <h2 className="font-display font-bold text-2xl mb-6 flex items-center gap-2">
         <button onClick={() => onNavigate("cart")} className="text-muted-foreground hover:text-white transition-colors"><Icon name="ArrowLeft" size={20} /></button>
         Оформление заказа

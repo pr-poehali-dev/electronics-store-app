@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { Page, API_ADMIN } from "@/lib/constants";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function AdminCustomersPage({ onNavigate }: { onNavigate: (p: Page) => void }) {
   const [customers, setCustomers] = useState<any[]>([]);
