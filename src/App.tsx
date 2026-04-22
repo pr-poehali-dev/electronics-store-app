@@ -11,7 +11,7 @@ const HERO_IMG = "https://cdn.poehali.dev/projects/38aa9852-5718-430f-acc5-30fa3
 const CATALOG_IMG = "https://cdn.poehali.dev/projects/38aa9852-5718-430f-acc5-30fa30b0d597/files/0b1b6e37-0a99-4e72-bdfc-19102cac72b2.jpg";
 const GADGETS_IMG = "https://cdn.poehali.dev/projects/38aa9852-5718-430f-acc5-30fa30b0d597/files/2b3f9fd8-0496-43f6-99e6-6d644bf3dcd6.jpg";
 
-type Page = "home" | "catalog" | "cart" | "checkout" | "orders" | "profile" | "admin" | "admin-products" | "admin-customers" | "admin-analytics" | "contacts" | "auth";
+type Page = "home" | "catalog" | "product" | "cart" | "checkout" | "orders" | "profile" | "admin" | "admin-products" | "admin-customers" | "admin-analytics" | "contacts" | "auth";
 
 interface User { id: number; email: string; first_name: string; last_name: string; role: string; }
 interface Product {
@@ -86,11 +86,11 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: (p: Product) => void }) {
+function ProductCard({ product, onAddToCart, onNavigateProduct }: { product: Product; onAddToCart: (p: Product) => void; onNavigateProduct?: (id: number) => void }) {
   const img = product.img_url || GADGETS_IMG;
   return (
-    <div className="glass card-hover rounded-2xl overflow-hidden neon-border group cursor-pointer flex flex-col">
-      <div className="relative h-44 overflow-hidden">
+    <div className="glass card-hover rounded-2xl overflow-hidden neon-border group flex flex-col">
+      <div className="relative h-44 overflow-hidden cursor-pointer" onClick={() => onNavigateProduct?.(product.id)}>
         <img src={img} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#080c14] via-transparent to-transparent" />
         {product.badge && (
@@ -105,7 +105,7 @@ function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: 
       </div>
       <div className="p-4 flex flex-col flex-1">
         <div className="text-xs text-muted-foreground mb-1">{product.brand} · {product.category}</div>
-        <div className="font-semibold text-sm leading-tight mb-2 text-white flex-1">{product.name}</div>
+        <div className="font-semibold text-sm leading-tight mb-2 text-white flex-1 cursor-pointer hover:text-cyan-400 transition-colors" onClick={() => onNavigateProduct?.(product.id)}>{product.name}</div>
         <div className="flex items-center gap-2 mb-2">
           <StarRating rating={product.rating} />
           <span className="text-xs text-muted-foreground">{product.reviews_count}</span>
@@ -129,7 +129,264 @@ function ProductCard({ product, onAddToCart }: { product: Product; onAddToCart: 
   );
 }
 
-function HomePage({ onNavigate, onAddToCart }: { onNavigate: (p: Page) => void; onAddToCart: (p: Product) => void }) {
+// ============ PRODUCT PAGE ============
+function ProductPage({ productId, onNavigate, onAddToCart }: { productId: number; onNavigate: (p: Page) => void; onAddToCart: (p: Product) => void }) {
+  const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [qty, setQty] = useState(1);
+  const [added, setAdded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"desc" | "specs" | "delivery">("desc");
+
+  useEffect(() => {
+    setLoading(true); setAdded(false); setQty(1);
+    fetch(`${API_PRODUCTS}?id=${productId}`).then(r => r.json()).then(p => {
+      setProduct(p);
+      if (p.category) {
+        fetch(`${API_PRODUCTS}?category=${encodeURIComponent(p.category)}&per_page=4`).then(r => r.json()).then(d => {
+          setRelated((d.products || []).filter((x: Product) => x.id !== productId).slice(0, 3));
+        }).catch(() => {});
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [productId]);
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    for (let i = 0; i < qty; i++) onAddToCart(product);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  const discount = product?.old_price ? Math.round((1 - product.price / product.old_price) * 100) : 0;
+
+  if (loading) return (
+    <div className="max-w-5xl mx-auto animate-pulse space-y-6">
+      <div className="glass rounded-2xl h-8 w-40" />
+      <div className="grid md:grid-cols-2 gap-8">
+        <div className="glass rounded-3xl h-80" />
+        <div className="space-y-4">
+          {[1,2,3,4,5].map(i => <div key={i} className="glass rounded-xl h-8" />)}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (!product) return (
+    <div className="text-center py-24">
+      <Icon name="PackageX" size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" fallback="Package" />
+      <h2 className="font-display font-bold text-xl mb-2">Товар не найден</h2>
+      <button onClick={() => onNavigate("catalog")} className="gradient-btn px-6 py-3 rounded-2xl mt-4">В каталог</button>
+    </div>
+  );
+
+  const img = product.img_url || GADGETS_IMG;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-8 animate-fade-up">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <button onClick={() => onNavigate("home")} className="hover:text-white transition-colors">Главная</button>
+        <Icon name="ChevronRight" size={12} />
+        <button onClick={() => onNavigate("catalog")} className="hover:text-white transition-colors">Каталог</button>
+        <Icon name="ChevronRight" size={12} />
+        <span className="text-white truncate max-w-xs">{product.name}</span>
+      </div>
+
+      {/* Main block */}
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Image */}
+        <div className="relative">
+          <div className="glass rounded-3xl overflow-hidden neon-border aspect-square flex items-center justify-center">
+            <img src={img} alt={product.name} className="w-full h-full object-cover" />
+            {product.badge && (
+              <span className="absolute top-4 left-4 text-sm font-bold px-3 py-1.5 rounded-full z-10"
+                style={{ background: 'linear-gradient(135deg, #00e5ff, #9b59f5)', color: '#080c14' }}>
+                {product.badge}
+              </span>
+            )}
+            {discount > 0 && (
+              <span className="absolute top-4 right-4 text-sm font-bold px-3 py-1.5 rounded-full z-10 bg-pink-500/90 text-white">
+                −{discount}%
+              </span>
+            )}
+          </div>
+          {/* Stock indicator */}
+          <div className="flex items-center gap-2 mt-3 px-1">
+            <span className={`w-2 h-2 rounded-full ${product.stock > 10 ? 'bg-emerald-400' : product.stock > 0 ? 'bg-orange-400' : 'bg-red-400'}`} />
+            <span className="text-xs text-muted-foreground">
+              {product.stock > 10 ? 'Много в наличии' : product.stock > 0 ? `Осталось ${product.stock} шт.` : 'Нет в наличии'}
+            </span>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="space-y-5">
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">{product.brand} · {product.category}</div>
+            <h1 className="font-display font-black text-2xl md:text-3xl leading-tight">{product.name}</h1>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <StarRating rating={product.rating} />
+            <span className="text-sm text-muted-foreground">{product.reviews_count} отзывов</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground">ID: {product.id}</span>
+          </div>
+
+          {/* Price */}
+          <div className="glass rounded-2xl p-4 neon-border">
+            <div className="flex items-end gap-3">
+              <span className="font-display font-black text-3xl text-cyan-400">{product.price.toLocaleString('ru-RU')} ₽</span>
+              {product.old_price && (
+                <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground line-through">{product.old_price.toLocaleString('ru-RU')} ₽</span>
+                  <span className="text-xs text-emerald-400 font-medium">Экономия {(product.old_price - product.price).toLocaleString('ru-RU')} ₽</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Specs chips */}
+          <div className="flex flex-wrap gap-2">
+            {product.power_info && (
+              <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-xl text-xs">
+                <Icon name="Zap" size={12} className="text-cyan-400" />
+                <span>{product.power_info}</span>
+              </div>
+            )}
+            {product.warranty && (
+              <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-xl text-xs">
+                <Icon name="Shield" size={12} className="text-purple-400" />
+                <span>Гарантия {product.warranty}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-xl text-xs">
+              <Icon name="Truck" size={12} className="text-emerald-400" />
+              <span>Доставка 1–3 дня</span>
+            </div>
+            <div className="flex items-center gap-1.5 glass px-3 py-1.5 rounded-xl text-xs">
+              <Icon name="RotateCcw" size={12} className="text-orange-400" />
+              <span>Возврат 14 дней</span>
+            </div>
+          </div>
+
+          {/* Quantity + Add to cart */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Количество:</span>
+              <div className="flex items-center glass rounded-xl overflow-hidden neon-border">
+                <button onClick={() => setQty(q => Math.max(1, q - 1))} className="px-3 py-2 hover:bg-white/5 transition-colors text-lg leading-none">−</button>
+                <span className="px-4 py-2 font-bold text-sm min-w-[3rem] text-center">{qty}</span>
+                <button onClick={() => setQty(q => Math.min(product.stock, q + 1))} className="px-3 py-2 hover:bg-white/5 transition-colors text-lg leading-none">+</button>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={handleAddToCart} disabled={product.stock === 0}
+                className={`flex-1 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${added ? 'bg-emerald-500 text-white' : 'gradient-btn'} disabled:opacity-40 disabled:cursor-not-allowed`}>
+                <Icon name={added ? "Check" : "ShoppingCart"} size={16} />
+                {product.stock === 0 ? "Нет в наличии" : added ? "Добавлено!" : `В корзину · ${(product.price * qty).toLocaleString('ru-RU')} ₽`}
+              </button>
+              <button className="glass px-4 py-3 rounded-2xl hover:border-pink-400/30 transition-all">
+                <Icon name="Heart" size={18} className="text-pink-400" />
+              </button>
+            </div>
+            {added && (
+              <button onClick={() => onNavigate("cart")} className="w-full text-center text-sm text-cyan-400 hover:text-cyan-300 transition-colors flex items-center justify-center gap-1">
+                Перейти в корзину <Icon name="ArrowRight" size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Trust badges */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { icon: "BadgeCheck", label: "Оригинал", sub: "Официальный товар" },
+              { icon: "CreditCard", label: "Рассрочка", sub: "0% на 12 мес." },
+              { icon: "Headset", label: "Поддержка", sub: "24/7 онлайн" },
+            ].map(b => (
+              <div key={b.label} className="glass rounded-xl p-3 text-center">
+                <Icon name={b.icon} size={16} className="text-cyan-400 mx-auto mb-1" fallback="Star" />
+                <div className="text-xs font-semibold">{b.label}</div>
+                <div className="text-[10px] text-muted-foreground">{b.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="glass rounded-2xl neon-border overflow-hidden">
+        <div className="flex border-b border-border">
+          {([
+            { id: "desc", label: "Описание" },
+            { id: "specs", label: "Характеристики" },
+            { id: "delivery", label: "Доставка и оплата" },
+          ] as const).map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`px-6 py-4 text-sm font-medium transition-all ${activeTab === tab.id ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-muted-foreground hover:text-white'}`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="p-6">
+          {activeTab === "desc" && (
+            <div className="text-muted-foreground leading-relaxed">
+              {product.description || `${product.name} — отличный выбор в категории ${product.category}. Производитель ${product.brand} гарантирует высокое качество и надёжность. Товар прошёл проверку качества и поставляется с официальной гарантией ${product.warranty || ''}.`}
+            </div>
+          )}
+          {activeTab === "specs" && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {[
+                { label: "Бренд", value: product.brand },
+                { label: "Категория", value: product.category },
+                { label: "Гарантия", value: product.warranty || "—" },
+                { label: "Автономность / Мощность", value: product.power_info || "—" },
+                { label: "Наличие", value: product.stock > 0 ? `${product.stock} шт.` : "Нет в наличии" },
+                { label: "Артикул", value: `TV-${String(product.id).padStart(5, '0')}` },
+              ].map(s => (
+                <div key={s.label} className="flex justify-between py-2 border-b border-border/50 last:border-0">
+                  <span className="text-muted-foreground text-sm">{s.label}</span>
+                  <span className="text-sm font-medium">{s.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab === "delivery" && (
+            <div className="space-y-4">
+              {[
+                { icon: "Truck", title: "Курьерская доставка", desc: "1–3 рабочих дня по России. Бесплатно при заказе от 5 000 ₽.", color: "text-cyan-400" },
+                { icon: "MapPin", title: "Самовывоз", desc: "Москва, ул. Технологическая, 14. Готово к выдаче в день заказа.", color: "text-purple-400" },
+                { icon: "CreditCard", title: "Оплата картой", desc: "Visa, MasterCard, МИР. Оплата на сайте или при получении.", color: "text-emerald-400" },
+                { icon: "Smartphone", title: "СБП", desc: "Система быстрых платежей. Мгновенное зачисление без комиссии.", color: "text-orange-400" },
+              ].map(d => (
+                <div key={d.title} className="flex gap-4 items-start">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <Icon name={d.icon} size={16} className={d.color} fallback="Info" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold">{d.title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{d.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Related products */}
+      {related.length > 0 && (
+        <section>
+          <h2 className="font-display font-bold text-xl mb-4">Похожие товары</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {related.map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onNavigateProduct={(id) => { window.scrollTo({top:0,behavior:'smooth'}); setProduct(null); setLoading(true); fetch(`${API_PRODUCTS}?id=${id}`).then(r=>r.json()).then(np=>{setProduct(np);setLoading(false);}).catch(()=>setLoading(false)); }} />)}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function HomePage({ onNavigate, onAddToCart, onNavigateProduct }: { onNavigate: (p: Page) => void; onAddToCart: (p: Product) => void; onNavigateProduct: (id: number) => void }) {
   const [featured, setFeatured] = useState<Product[]>([]);
   useEffect(() => {
     fetch(`${API_PRODUCTS}?per_page=6`).then(r => r.json()).then(d => setFeatured(d.products || [])).catch(() => {});
@@ -202,18 +459,73 @@ function HomePage({ onNavigate, onAddToCart }: { onNavigate: (p: Page) => void; 
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-            {featured.slice(0, 3).map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} />)}
+            {featured.slice(0, 3).map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onNavigateProduct={onNavigateProduct} />)}
           </div>
         )}
       </section>
 
-      <section className="relative rounded-3xl overflow-hidden">
-        <img src={CATALOG_IMG} alt="Акция" className="w-full h-48 object-cover opacity-30" />
-        <div className="absolute inset-0 flex items-center px-10" style={{ background: 'linear-gradient(90deg, rgba(8,12,20,0.9) 0%, rgba(8,12,20,0.6) 100%)' }}>
-          <div>
-            <div className="text-xs font-bold mb-2 uppercase tracking-widest text-pink-400">Горячее предложение</div>
-            <h3 className="font-display font-black text-2xl md:text-3xl mb-2">До 30% скидки<br />на ноутбуки</h3>
-            <button onClick={() => onNavigate("catalog")} className="gradient-btn px-6 py-2 rounded-xl text-sm mt-2">Воспользоваться</button>
+      {/* 3 промо-баннера */}
+      <section className="grid md:grid-cols-3 gap-4">
+        {/* Баннер 1 — ноутбуки */}
+        <div className="relative rounded-3xl overflow-hidden md:col-span-1">
+          <img src={CATALOG_IMG} alt="Ноутбуки" className="w-full h-48 object-cover opacity-30" />
+          <div className="absolute inset-0 flex flex-col justify-end p-6" style={{ background: 'linear-gradient(0deg, rgba(8,12,20,0.95) 0%, rgba(8,12,20,0.4) 100%)' }}>
+            <div className="text-xs font-bold mb-1 uppercase tracking-widest text-pink-400">−30%</div>
+            <h3 className="font-display font-black text-xl mb-3">Скидки<br />на ноутбуки</h3>
+            <button onClick={() => onNavigate("catalog")} className="gradient-btn px-4 py-2 rounded-xl text-xs w-fit">Смотреть</button>
+          </div>
+        </div>
+
+        {/* Баннер 2 — наушники */}
+        <div className="relative rounded-3xl overflow-hidden md:col-span-1" style={{ background: 'linear-gradient(135deg, rgba(155,89,245,0.15), rgba(8,12,20,0.9))' }}>
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(155,89,245,0.2) 0%, rgba(8,12,20,0.95) 70%)' }} />
+          <img src={HERO_IMG} alt="Аудио" className="w-full h-48 object-cover opacity-20" />
+          <div className="absolute inset-0 flex flex-col justify-end p-6">
+            <div className="text-xs font-bold mb-1 uppercase tracking-widest text-purple-400">Новинки</div>
+            <h3 className="font-display font-black text-xl mb-3">Аудио<br />от Sony & Bose</h3>
+            <button onClick={() => onNavigate("catalog")} className="px-4 py-2 rounded-xl text-xs w-fit font-bold text-[#080c14]" style={{ background: 'linear-gradient(135deg, #9b59f5, #6d28d9)' }}>Слушать</button>
+          </div>
+        </div>
+
+        {/* Баннер 3 — рассрочка */}
+        <div className="relative rounded-3xl overflow-hidden md:col-span-1" style={{ background: 'linear-gradient(135deg, rgba(0,229,255,0.1), rgba(8,12,20,0.95))' }}>
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,229,255,0.15) 0%, rgba(8,12,20,0.95) 60%)' }} />
+          <img src={GADGETS_IMG} alt="Рассрочка" className="w-full h-48 object-cover opacity-20" />
+          <div className="absolute inset-0 flex flex-col justify-end p-6">
+            <div className="text-xs font-bold mb-1 uppercase tracking-widest text-cyan-400">Специально</div>
+            <h3 className="font-display font-black text-xl mb-1">Рассрочка<br />0% на 12 мес.</h3>
+            <p className="text-xs text-muted-foreground mb-3">На все смартфоны и планшеты</p>
+            <button onClick={() => onNavigate("catalog")} className="gradient-btn px-4 py-2 rounded-xl text-xs w-fit">Оформить</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Таймер акции */}
+      <section className="glass rounded-3xl neon-border overflow-hidden">
+        <div className="grid md:grid-cols-2">
+          <div className="p-8 md:p-10 flex flex-col justify-center">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-orange-400 mb-3">
+              <Icon name="Flame" size={14} fallback="Zap" />Горячая распродажа
+            </div>
+            <h3 className="font-display font-black text-2xl md:text-3xl mb-2">Гаджеты<br /><span className="gradient-text">со скидкой до 40%</span></h3>
+            <p className="text-muted-foreground text-sm mb-6">Носимые устройства, аксессуары и камеры. Только сегодня и завтра!</p>
+            <button onClick={() => onNavigate("catalog")} className="gradient-btn px-6 py-3 rounded-2xl text-sm w-fit flex items-center gap-2">
+              <Icon name="Zap" size={16} />Забрать скидку
+            </button>
+          </div>
+          <div className="relative hidden md:flex items-center justify-center p-8 overflow-hidden">
+            <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, rgba(255,107,43,0.15) 0%, transparent 70%)' }} />
+            <div className="grid grid-cols-2 gap-3 relative z-10">
+              {[
+                { label: "Часов", value: "23" }, { label: "Минут", value: "47" },
+                { label: "Секунд", value: "12" }, { label: "Товаров", value: "40+" },
+              ].map(t => (
+                <div key={t.label} className="glass rounded-2xl p-4 text-center" style={{ border: '1px solid rgba(255,107,43,0.2)' }}>
+                  <div className="font-display font-black text-2xl text-orange-400">{t.value}</div>
+                  <div className="text-xs text-muted-foreground">{t.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -240,7 +552,7 @@ function HomePage({ onNavigate, onAddToCart }: { onNavigate: (p: Page) => void; 
   );
 }
 
-function CatalogPage({ onAddToCart }: { onAddToCart: (p: Product) => void }) {
+function CatalogPage({ onAddToCart, onNavigateProduct }: { onAddToCart: (p: Product) => void; onNavigateProduct: (id: number) => void }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -301,7 +613,7 @@ function CatalogPage({ onAddToCart }: { onAddToCart: (p: Product) => void }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {products.map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} />)}
+          {products.map(p => <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onNavigateProduct={onNavigateProduct} />)}
         </div>
       )}
 
@@ -1044,6 +1356,7 @@ const NAV_ITEMS: { id: Page; label: string; icon: string }[] = [
 export default function App() {
   const { user, token, loading: authLoading, login, register, logout } = useAuth();
   const [page, setPage] = useState<Page>("home");
+  const [currentProductId, setCurrentProductId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<number | null>(null);
@@ -1057,6 +1370,7 @@ export default function App() {
   };
 
   const navigate = (p: Page) => { setPage(p); setMobileMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const navigateProduct = (id: number) => { setCurrentProductId(id); setPage("product"); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const cartCount = cart.reduce((s, p) => s + p.quantity, 0);
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><div className="text-muted-foreground animate-pulse">Загрузка...</div></div>;
@@ -1129,9 +1443,10 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {page === "home" && !lastOrderId && <HomePage onNavigate={navigate} onAddToCart={addToCart} />}
+        {page === "home" && !lastOrderId && <HomePage onNavigate={navigate} onAddToCart={addToCart} onNavigateProduct={navigateProduct} />}
         {page === "home" && lastOrderId && <OrderSuccessPage orderId={lastOrderId} onNavigate={(p) => { setLastOrderId(null); navigate(p); }} />}
-        {page === "catalog" && <CatalogPage onAddToCart={addToCart} />}
+        {page === "product" && currentProductId && <ProductPage productId={currentProductId} onNavigate={navigate} onAddToCart={addToCart} />}
+        {page === "catalog" && <CatalogPage onAddToCart={addToCart} onNavigateProduct={navigateProduct} />}
         {page === "cart" && <CartPage cart={cart} onUpdate={setCart} onNavigate={navigate} />}
         {page === "checkout" && <CheckoutPage cart={cart} token={token} user={user} onSuccess={(id) => { setLastOrderId(id); setCart([]); navigate("home"); }} onNavigate={navigate} />}
         {page === "orders" && <OrdersPage token={token} user={user} onNavigate={navigate} />}
